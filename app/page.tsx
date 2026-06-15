@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
 
 const modes = [
   {
@@ -29,14 +28,13 @@ const modes = [
 export default function Home() {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
 
-  useEffect(() => setMounted(true), [])
+
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center px-6 py-24">
 
-      {mounted && (
+      {theme !== undefined && (
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="absolute top-6 right-6 w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
@@ -68,10 +66,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: mode.delay, ease: 'easeOut' }}
             onClick={() => mode.href && router.push(mode.href)}
-            className={`p-7 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-accent hover:-translate-y-1 transition-all duration-200
-            }`
-            
-            }
+            className="p-7 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-accent hover:-translate-y-1 transition-all duration-200"
           >
             <span className="text-4xl">{mode.emoji}</span>
             <h2 className="mt-4 font-display text-xl font-semibold">{mode.title}</h2>

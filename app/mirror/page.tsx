@@ -52,15 +52,16 @@ export default function MirrorMode() {
   const aiPrediction = useMemo(() => predict(history), [history])
 
   // Trigger the dramatic reveal when confidence is high enough
-  useEffect(() => {
+    useEffect(() => {
     if (
-      gameState === 'observing' &&
-      history.length >= REVEAL_MIN_ROUNDS &&
-      aiPrediction.confidence >= REVEAL_CONFIDENCE
+        gameState === 'observing' &&
+        history.length >= REVEAL_MIN_ROUNDS &&
+        aiPrediction.confidence >= REVEAL_CONFIDENCE
     ) {
-      setGameState('revealing')
+        const t = setTimeout(() => setGameState('revealing'), 0)
+        return () => clearTimeout(t)
     }
-  }, [aiPrediction.confidence, history.length, gameState])
+    }, [aiPrediction.confidence, history.length, gameState])
 
   // Auto-advance after showing the result
   useEffect(() => {
@@ -133,7 +134,7 @@ export default function MirrorMode() {
               transition={{ delay: 0.6, duration: 0.6 }}
               className="text-zinc-400 text-lg tracking-wide"
             >
-              I've been watching you.
+              I&apos;ve been watching you.
             </motion.p>
 
             <motion.h1
@@ -216,7 +217,7 @@ export default function MirrorMode() {
               <div className="flex flex-col items-center gap-6">
                 <div className="w-full p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-accent/30 text-center">
                   <p className="text-xs text-zinc-500 tracking-widest uppercase mb-3">
-                    I predict you'll throw
+                    I predict you&apos;ll throw
                   </p>
                   <div className={`text-6xl ${MOVE_COLOR[aiPrediction.predictedOpponent]}`}>
                     {MOVE_EMOJI[aiPrediction.predictedOpponent]}
@@ -225,7 +226,7 @@ export default function MirrorMode() {
                     {MOVE_LABEL[aiPrediction.predictedOpponent]}
                   </p>
                   <p className="mt-3 text-xs font-medium text-accent">
-                    So I'm playing {MOVE_LABEL[aiPrediction.suggestedMove]} · {confidencePct}% sure
+                    So I&apos;m playing... {MOVE_LABEL[aiPrediction.suggestedMove]} · {confidencePct}% sure
                   </p>
                   {aiPrediction.reason && (
                     <p className="mt-1.5 text-xs text-zinc-500 leading-relaxed">
