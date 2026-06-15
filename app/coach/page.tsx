@@ -1,37 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { predict } from '@/lib/ai/engine'
+import type { Move, RoundRecord } from '@/lib/types'
 
-// --- Types ---
-type Move = 'rock' | 'paper' | 'scissors'
 type Phase = 'suggest' | 'input' | 'result'
 type Outcome = 'win' | 'loss' | 'tie'
 
-// --- Move display data ---
-const MOVE_EMOJI: Record<Move, string> = {
-  rock: '✊',
-  paper: '✋',
-  scissors: '✌️',
-}
-
-const MOVE_LABEL: Record<Move, string> = {
-  rock: 'Rock',
-  paper: 'Paper',
-  scissors: 'Scissors',
-}
-
+const MOVE_EMOJI: Record<Move, string> = { rock: '✊', paper: '✋', scissors: '✌️' }
+const MOVE_LABEL: Record<Move, string> = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors' }
 const MOVE_COLOR: Record<Move, string> = {
   rock: 'text-rock',
   paper: 'text-paper',
   scissors: 'text-scissors',
-}
-
-// --- Game logic helpers ---
-function getRandomMove(): Move {
-  const moves: Move[] = ['rock', 'paper', 'scissors']
-  return moves[Math.floor(Math.random() * 3)]
 }
 
 function getOutcome(yourMove: Move, theirMove: Move): Outcome {
@@ -45,19 +28,28 @@ function getOutcome(yourMove: Move, theirMove: Move): Outcome {
   return 'loss'
 }
 
-// --- Component ---
 export default function CoachMode() {
   const [round, setRound] = useState(1)
   const [score, setScore] = useState({ you: 0, them: 0, ties: 0 })
   const [phase, setPhase] = useState<Phase>('suggest')
-  const [suggestedMove, setSuggestedMove] = useState<Move>(getRandomMove)
-  const [opponentMove, setOpponentMove] = useState<Move | null>(null)
+  const [history, setHistory] = useState<RoundRecord[]>([])
+  const [lastOpponentMove, setLastOpponentMove] = useState<Move | null>(null)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
 
-  // When opponent move is logged, calculate result and update score
+  // This single line IS the AI — recomputes every time history changes
+  const prediction = useMemo(() => predict(history), [history])
+
+  const isLearning = prediction.confidence < 0.2
+  const confidencePct = Math.round(prediction.confidence * 100)
+
   function handleOpponentMove(move: Move) {
-    const result = getOutcome(suggestedMove, move)
-    setOpponentMove(move)
+    const result = getOutcome(prediction.suggestedMove, move)
+
+    setHistory((prev) => [
+      ...prev,
+      { opponentMove: move, yourMove: prediction.suggestedMove, outcome: result },
+    ])
+    setLastOpponentMove(move)
     setOutcome(result)
     setScore((prev) => ({
       you:  result === 'win'  ? prev.you  + 1 : prev.you,
@@ -67,25 +59,22 @@ export default function CoachMode() {
     setPhase('result')
   }
 
-  // Auto-advance to next round after showing result
   useEffect(() => {
     if (phase !== 'result') return
-    const timer = setTimeout(() => {
+    const t = setTimeout(() => {
       setRound((r) => r + 1)
-      setSuggestedMove(getRandomMove())
-      setOpponentMove(null)
+      setLastOpponentMove(null)
       setOutcome(null)
       setPhase('suggest')
     }, 1800)
-    return () => clearTimeout(timer)
+    return () => clearTimeout(t)
   }, [phase])
 
   const OUTCOME_TEXT: Record<Outcome, string> = {
-    win: '✅ You won that round',
+    win:  '✅ You won that round',
     loss: '❌ They got that one',
-    tie: '🤝 Tie',
+    tie:  '🤝 Tie',
   }
-
   const OUTCOME_COLOR: Record<Outcome, string> = {
     win: 'text-green-400',
     loss: 'text-red-400',
@@ -95,12 +84,8 @@ export default function CoachMode() {
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col">
 
-      {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
-        <Link
-          href="/"
-          className="font-display font-bold text-lg hover:text-accent transition-colors"
-        >
+        <Link href="/" className="font-display font-bold text-lg hover:text-accent transition-colors">
           ← Tellum
         </Link>
         <div className="flex items-center gap-4 text-sm font-medium">
@@ -113,66 +98,79 @@ export default function CoachMode() {
         </div>
       </header>
 
-      {/* Game area */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-10">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
 
-        {/* Move display */}
         <AnimatePresence mode="wait">
           <motion.div
             key={`${phase}-${round}`}
-            initial={{ opacity: 0, scale: 0.85 }}
+            initial={{ opacity: 0, scale: 0.88 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.85 }}
+            exit={{ opacity: 0, scale: 0.88 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="text-center"
           >
-            {phase === 'result' && outcome && opponentMove ? (
-              // Result: show both moves and outcome
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-6">
+            {phase === 'result' && outcome && lastOpponentMove ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center gap-8">
                   <div className="text-center">
-                    <div className={`text-7xl ${MOVE_COLOR[suggestedMove]}`}>
-                      {MOVE_EMOJI[suggestedMove]}
+                    <div className={`text-7xl ${MOVE_COLOR[prediction.suggestedMove]}`}>
+                      {MOVE_EMOJI[prediction.suggestedMove]}
                     </div>
                     <p className="mt-1 text-xs text-zinc-500">You</p>
                   </div>
-                  <span className="text-2xl text-zinc-400">vs</span>
+                  <span className="text-xl text-zinc-400">vs</span>
                   <div className="text-center">
-                    <div className={`text-7xl ${MOVE_COLOR[opponentMove]}`}>
-                      {MOVE_EMOJI[opponentMove]}
+                    <div className={`text-7xl ${MOVE_COLOR[lastOpponentMove]}`}>
+                      {MOVE_EMOJI[lastOpponentMove]}
                     </div>
                     <p className="mt-1 text-xs text-zinc-500">Them</p>
                   </div>
                 </div>
-                <p className={`mt-4 text-xl font-semibold ${OUTCOME_COLOR[outcome]}`}>
+                <p className={`text-xl font-semibold ${OUTCOME_COLOR[outcome]}`}>
                   {OUTCOME_TEXT[outcome]}
                 </p>
               </div>
             ) : (
-              // Suggest / Input: show the suggested move
               <div>
                 <p className="text-xs font-medium text-zinc-400 tracking-widest uppercase mb-6">
                   {phase === 'suggest' ? 'Play this' : 'You played'}
                 </p>
-                <div className={`text-[120px] leading-none ${MOVE_COLOR[suggestedMove]}`}>
-                  {MOVE_EMOJI[suggestedMove]}
+
+                <div className={`text-[120px] leading-none ${MOVE_COLOR[prediction.suggestedMove]}`}>
+                  {MOVE_EMOJI[prediction.suggestedMove]}
                 </div>
-                <p className={`font-display text-4xl font-bold mt-3 ${MOVE_COLOR[suggestedMove]}`}>
-                  {MOVE_LABEL[suggestedMove]}
+
+                <p className={`font-display text-4xl font-bold mt-3 ${MOVE_COLOR[prediction.suggestedMove]}`}>
+                  {MOVE_LABEL[prediction.suggestedMove]}
                 </p>
-                <div className="mt-5 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-500">
-                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />
-                  Learning your opponent · round {round} of 8
+
+                <div className="mt-5 flex flex-col items-center gap-2">
+                  {isLearning ? (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-500">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />
+                      Learning your opponent...
+                    </div>
+                  ) : (
+                    <>
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 text-xs font-medium text-accent">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                        {confidencePct}% confident
+                      </div>
+                      {prediction.reason && (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xs text-center leading-relaxed mt-1">
+                          {prediction.reason}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             )}
           </motion.div>
         </AnimatePresence>
 
-        {/* Action buttons */}
         <div className="w-full max-w-sm">
           <AnimatePresence mode="wait">
-
             {phase === 'suggest' && (
               <motion.button
                 key="played"
@@ -216,7 +214,6 @@ export default function CoachMode() {
                 </div>
               </motion.div>
             )}
-
           </AnimatePresence>
         </div>
 
