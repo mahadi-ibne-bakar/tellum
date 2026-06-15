@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 
@@ -11,6 +12,7 @@ const modes = [
     description:
       'Play against a real person. Tellum watches their moves and tells you exactly what to throw next.',
     cta: 'Two players, one phone',
+    href: '/coach',
     delay: 0.25,
   },
   {
@@ -18,22 +20,22 @@ const modes = [
     title: 'Mirror Mode',
     description:
       'Play solo. Tellum secretly learns your patterns — then turns them against you.',
-    cta: 'Solo challenge',
+    cta: 'Coming soon',
+    href: null,
     delay: 0.4,
   },
 ]
 
 export default function Home() {
+  const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  // Wait until mounted to show theme toggle — avoids hydration mismatch
   useEffect(() => setMounted(true), [])
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center px-6 py-24">
 
-      {/* Theme toggle button */}
       {mounted && (
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -44,7 +46,6 @@ export default function Home() {
         </button>
       )}
 
-      {/* Wordmark */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -59,7 +60,6 @@ export default function Home() {
         </p>
       </motion.div>
 
-      {/* Mode cards */}
       <div className="mt-20 grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-2xl">
         {modes.map((mode) => (
           <motion.div
@@ -67,22 +67,20 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: mode.delay, ease: 'easeOut' }}
-            className="p-7 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-accent transition-all duration-200 hover:-translate-y-1"
+            onClick={() => mode.href && router.push(mode.href)}
+            className={`p-7 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-all duration-200 hover:-translate-y-1 hover:border-accent ${
+              mode.href ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+            }`}
           >
             <span className="text-4xl">{mode.emoji}</span>
-            <h2 className="mt-4 font-display text-xl font-semibold">
-              {mode.title}
-            </h2>
+            <h2 className="mt-4 font-display text-xl font-semibold">{mode.title}</h2>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
               {mode.description}
             </p>
-            <p className="mt-5 text-sm font-medium text-accent">
-              {mode.cta} →
-            </p>
+            <p className="mt-5 text-sm font-medium text-accent">{mode.cta} →</p>
           </motion.div>
         ))}
       </div>
-
     </main>
   )
 }
