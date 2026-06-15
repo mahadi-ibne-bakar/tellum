@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { useTheme } from 'next-themes'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { AuthButton } from '@/components/AuthButton'
 
 const modes = [
   {
@@ -27,22 +28,17 @@ const modes = [
 
 export default function Home() {
   const router = useRouter()
-  const { theme, setTheme } = useTheme()
 
 
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center px-6 py-24">
-
-      {theme !== undefined && (
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="absolute top-6 right-6 w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
-      )}
+      <div className="absolute top-6 left-6">
+        <AuthButton />
+      </div>
+      <div className="absolute top-6 right-6">
+        <ThemeToggle />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: -20 }}
