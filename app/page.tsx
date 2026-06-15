@@ -20,8 +20,8 @@ const modes = [
     title: 'Mirror Mode',
     description:
       'Play solo. Tellum secretly learns your patterns — then turns them against you.',
-    cta: 'Coming soon',
-    href: null,
+    cta: 'Solo challenge',
+    href: '/mirror',
     delay: 0.4,
   },
 ]
@@ -68,9 +68,10 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: mode.delay, ease: 'easeOut' }}
             onClick={() => mode.href && router.push(mode.href)}
-            className={`p-7 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-all duration-200 hover:-translate-y-1 hover:border-accent ${
-              mode.href ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
-            }`}
+            className={`p-7 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-accent hover:-translate-y-1 transition-all duration-200
+            }`
+            
+            }
           >
             <span className="text-4xl">{mode.emoji}</span>
             <h2 className="mt-4 font-display text-xl font-semibold">{mode.title}</h2>
