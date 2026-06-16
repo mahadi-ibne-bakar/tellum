@@ -4,10 +4,16 @@ import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { predict } from '@/lib/ai/engine'
-import type { Move, RoundRecord } from '@/lib/types'
-import { loadHistory, saveRound } from '@/lib/supabase/database'
+import type { Move, RoundRecord, OpponentProfile } from '@/lib/types'
+import {
+  loadHistory,
+  saveRound,
+  getOpponentProfiles,
+  createOpponentProfile,
+} from '@/lib/supabase/database'
 
-type Phase = 'suggest' | 'input' | 'result'
+type GamePhase = 'selecting' | 'playing'
+type RoundPhase = 'suggest' | 'input' | 'result'
 type Outcome = 'win' | 'loss' | 'tie'
 
 const MOVE_EMOJI: Record<Move, string> = { rock: '✊', paper: '✋', scissors: '✌️' }
@@ -21,40 +27,87 @@ const MOVE_COLOR: Record<Move, string> = {
 function getOutcome(yourMove: Move, theirMove: Move): Outcome {
   if (yourMove === theirMove) return 'tie'
   if (
-    (yourMove === 'rock' && theirMove === 'scissors') ||
-    (yourMove === 'paper' && theirMove === 'rock') ||
+    (yourMove === 'rock'     && theirMove === 'scissors') ||
+    (yourMove === 'paper'    && theirMove === 'rock')     ||
     (yourMove === 'scissors' && theirMove === 'paper')
-  )
-    return 'win'
+  ) return 'win'
   return 'loss'
 }
 
 export default function CoachMode() {
-  const [round, setRound] = useState(1)
-  const [score, setScore] = useState({ you: 0, them: 0, ties: 0 })
-  const [phase, setPhase] = useState<Phase>('suggest')
-  const [history, setHistory] = useState<RoundRecord[]>([])
+  // ── Profile selection state ───────────────────────────────────────────────
+  const [gamePhase,    setGamePhase]    = useState<GamePhase>('selecting')
+  const [profiles,     setProfiles]     = useState<OpponentProfile[]>([])
+  const [selectedProfile, setSelectedProfile] = useState<OpponentProfile | null>(null)
+  const [newName,      setNewName]      = useState('')
+  const [showNewInput, setShowNewInput] = useState(false)
+  const [loadingProfiles, setLoadingProfiles] = useState(true)
+
+  // ── Game state ────────────────────────────────────────────────────────────
+  const [round,           setRound]          = useState(1)
+  const [score,           setScore]          = useState({ you: 0, them: 0, ties: 0 })
+  const [roundPhase,      setRoundPhase]     = useState<RoundPhase>('suggest')
+  const [history,         setHistory]        = useState<RoundRecord[]>([])
   const [lastOpponentMove, setLastOpponentMove] = useState<Move | null>(null)
-  const [outcome, setOutcome] = useState<Outcome | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [outcome,         setOutcome]        = useState<Outcome | null>(null)
 
-  // This single line IS the AI — recomputes every time history changes
-  const prediction = useMemo(() => predict(history), [history])
-
-  const isLearning = prediction.confidence < 0.2
+  const prediction   = useMemo(() => predict(history), [history])
+  const isLearning   = prediction.confidence < 0.2
   const confidencePct = Math.round(prediction.confidence * 100)
+
+  // Load profiles on mount
+  useEffect(() => {
+    getOpponentProfiles().then((p) => {
+      setProfiles(p)
+      setLoadingProfiles(false)
+    })
+  }, [])
+
+  // Auto-advance after result
+  useEffect(() => {
+    if (roundPhase !== 'result') return
+    const t = setTimeout(() => {
+      setRound((r) => r + 1)
+      setLastOpponentMove(null)
+      setOutcome(null)
+      setRoundPhase('suggest')
+    }, 1800)
+    return () => clearTimeout(t)
+  }, [roundPhase])
+
+  // ── Profile handlers ──────────────────────────────────────────────────────
+
+  async function handleSelectProfile(profile: OpponentProfile) {
+    setSelectedProfile(profile)
+    const h = await loadHistory('coach', profile.id)
+    setHistory(h)
+    setGamePhase('playing')
+  }
+
+  async function handleCreateProfile() {
+    if (!newName.trim()) return
+    const profile = await createOpponentProfile(newName.trim())
+    if (profile) {
+      setProfiles((prev) => [profile, ...prev])
+      setSelectedProfile(profile)
+      setHistory([])
+      setGamePhase('playing')
+    }
+  }
+
+  // ── Game handler ──────────────────────────────────────────────────────────
 
   function handleOpponentMove(move: Move) {
     const result = getOutcome(prediction.suggestedMove, move)
 
     const record: RoundRecord = {
       opponentMove: move,
-      yourMove: prediction.suggestedMove,
-      outcome: result,
+      yourMove:     prediction.suggestedMove,
+      outcome:      result,
     }
 
     setHistory((prev) => [...prev, record])
-    saveRound('coach', record)
+    saveRound('coach', record, selectedProfile?.id)
 
     setLastOpponentMove(move)
     setOutcome(result)
@@ -63,26 +116,8 @@ export default function CoachMode() {
       them: result === 'loss' ? prev.them + 1 : prev.them,
       ties: result === 'tie'  ? prev.ties + 1 : prev.ties,
     }))
-    setPhase('result')
+    setRoundPhase('result')
   }
-
-  useEffect(() => {
-    if (phase !== 'result') return
-    const t = setTimeout(() => {
-      setRound((r) => r + 1)
-      setLastOpponentMove(null)
-      setOutcome(null)
-      setPhase('suggest')
-    }, 1800)
-    return () => clearTimeout(t)
-  }, [phase])
-
-  useEffect(() => {
-    loadHistory('coach').then((h) => {
-      setHistory(h)
-      setLoading(false)
-    })
-  }, [])
 
   const OUTCOME_TEXT: Record<Outcome, string> = {
     win:  '✅ You won that round',
@@ -90,26 +125,108 @@ export default function CoachMode() {
     tie:  '🤝 Tie',
   }
   const OUTCOME_COLOR: Record<Outcome, string> = {
-    win: 'text-green-400',
+    win:  'text-green-400',
     loss: 'text-red-400',
-    tie: 'text-zinc-400',
+    tie:  'text-zinc-400',
   }
 
-  if (loading) {
+  // ── Profile selector screen ───────────────────────────────────────────────
+
+  if (loadingProfiles) {
     return (
       <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
-        <p className="text-sm text-zinc-500">Loading history...</p>
+        <p className="text-sm text-zinc-500">Loading...</p>
       </div>
     )
   }
+
+  if (gamePhase === 'selecting') {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col">
+        <header className="flex items-center px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+          <Link href="/" className="font-display font-bold text-lg hover:text-accent transition-colors">
+            ← Tellum
+          </Link>
+        </header>
+
+        <main className="flex-1 flex flex-col px-6 py-10 w-full max-w-sm mx-auto gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mb-2"
+          >
+            <h1 className="font-display text-2xl font-bold">Who are you playing against?</h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              Tellum learns each person separately
+            </p>
+          </motion.div>
+
+          {/* Existing profiles */}
+          {profiles.map((profile, i) => (
+            <motion.button
+              key={profile.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: i * 0.05 }}
+              onClick={() => handleSelectProfile(profile)}
+              className="w-full p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-accent text-left transition-all active:scale-95"
+            >
+              <p className="font-medium">{profile.name}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">Continue →</p>
+            </motion.button>
+          ))}
+
+          {/* New opponent */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: profiles.length * 0.05 }}
+          >
+            {!showNewInput ? (
+              <button
+                onClick={() => setShowNewInput(true)}
+                className="w-full py-4 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 text-sm text-zinc-500 hover:border-accent hover:text-accent transition-all"
+              >
+                + New opponent
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <input
+                  autoFocus
+                  placeholder="Their name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateProfile()}
+                  className="w-full px-4 py-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm focus:outline-none focus:border-accent transition-colors"
+                />
+                <button
+                  onClick={handleCreateProfile}
+                  disabled={!newName.trim()}
+                  className="w-full py-3 rounded-xl bg-accent text-white font-semibold hover:bg-indigo-500 active:scale-95 transition-all disabled:opacity-40"
+                >
+                  Start →
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </main>
+      </div>
+    )
+  }
+
+  // ── Game screen ───────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col">
 
       <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
-        <Link href="/" className="font-display font-bold text-lg hover:text-accent transition-colors">
-          ← Tellum
-        </Link>
+        <button
+          onClick={() => setGamePhase('selecting')}
+          className="font-display font-bold text-lg hover:text-accent transition-colors"
+        >
+          ← {selectedProfile?.name ?? 'Tellum'}
+        </button>
         <div className="flex items-center gap-4 text-sm font-medium">
           <span className="text-zinc-400">Round {round}</span>
           <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800">
@@ -124,14 +241,14 @@ export default function CoachMode() {
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${phase}-${round}`}
+            key={`${roundPhase}-${round}`}
             initial={{ opacity: 0, scale: 0.88 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.88 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="text-center"
           >
-            {phase === 'result' && outcome && lastOpponentMove ? (
+            {roundPhase === 'result' && outcome && lastOpponentMove ? (
               <div className="flex flex-col items-center gap-3">
                 <div className="flex items-center gap-8">
                   <div className="text-center">
@@ -145,7 +262,7 @@ export default function CoachMode() {
                     <div className={`text-7xl ${MOVE_COLOR[lastOpponentMove]}`}>
                       {MOVE_EMOJI[lastOpponentMove]}
                     </div>
-                    <p className="mt-1 text-xs text-zinc-500">Them</p>
+                    <p className="mt-1 text-xs text-zinc-500">{selectedProfile?.name}</p>
                   </div>
                 </div>
                 <p className={`text-xl font-semibold ${OUTCOME_COLOR[outcome]}`}>
@@ -155,7 +272,7 @@ export default function CoachMode() {
             ) : (
               <div>
                 <p className="text-xs font-medium text-zinc-400 tracking-widest uppercase mb-6">
-                  {phase === 'suggest' ? 'Play this' : 'You played'}
+                  {roundPhase === 'suggest' ? 'Play this' : 'You played'}
                 </p>
 
                 <div className={`text-[120px] leading-none ${MOVE_COLOR[prediction.suggestedMove]}`}>
@@ -170,7 +287,7 @@ export default function CoachMode() {
                   {isLearning ? (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-500">
                       <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />
-                      Learning your opponent...
+                      Learning {selectedProfile?.name}...
                     </div>
                   ) : (
                     <>
@@ -193,21 +310,21 @@ export default function CoachMode() {
 
         <div className="w-full max-w-sm">
           <AnimatePresence mode="wait">
-            {phase === 'suggest' && (
+            {roundPhase === 'suggest' && (
               <motion.button
                 key="played"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.2 }}
-                onClick={() => setPhase('input')}
+                onClick={() => setRoundPhase('input')}
                 className="w-full py-4 rounded-2xl bg-accent text-white font-semibold text-lg hover:bg-indigo-500 active:scale-95 transition-all"
               >
                 I played it →
               </motion.button>
             )}
 
-            {phase === 'input' && (
+            {roundPhase === 'input' && (
               <motion.div
                 key="input"
                 initial={{ opacity: 0, y: 12 }}
@@ -216,7 +333,7 @@ export default function CoachMode() {
                 transition={{ duration: 0.2 }}
               >
                 <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                  What did they throw?
+                  What did {selectedProfile?.name} throw?
                 </p>
                 <div className="grid grid-cols-3 gap-3">
                   {(['rock', 'paper', 'scissors'] as Move[]).map((move) => (

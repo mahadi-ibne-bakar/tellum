@@ -18,3 +18,9 @@ export interface Prediction {
     scissors: number
   }
 }
+
+export interface OpponentProfile {
+  id: string
+  name: string
+  created_at: string
+}
