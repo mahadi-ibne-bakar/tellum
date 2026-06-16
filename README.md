@@ -106,3 +106,31 @@ pnpm dev
 Open [http://localhost:3000](http://localhost:3000).
 
 ## Project structure
+
+tellum/
+
+├── app/
+│   ├── auth/                  Sign in / sign up
+│   ├── coach/                 Coach Mode + opponent profile selector
+│   │   └── profile/[id]/      Shareable pattern card per opponent
+│   ├── mirror/                Mirror Mode
+│   ├── settings/              Display + AI sensitivity settings
+│   └── page.tsx                Landing page
+├── components/                 Reusable UI (auth button, toggle, pattern card, theme)
+├── hooks/                       useSettings — reads/writes localStorage preferences
+├── lib/
+│   ├── ai/
+│   │   ├── engine.ts            The 5-signal prediction ensemble
+│   │   └── patterns.ts          Turns raw model output into labeled badges
+│   ├── supabase/                Client, server, and database query helpers
+│   └── types.ts
+└── proxy.ts                     Refreshes Supabase auth sessions on every request
+
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
