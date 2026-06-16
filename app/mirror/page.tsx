@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { predict } from '@/lib/ai/engine'
 import type { Move, RoundRecord } from '@/lib/types'
 import { loadHistory, saveRound } from '@/lib/supabase/database'
+import { useSettings } from '@/hooks/useSettings'
 
 type GameState = 'observing' | 'revealing' | 'confronting'
 type RoundPhase = 'choose' | 'result'
@@ -36,8 +37,6 @@ function getUserOutcome(userMove: Move, aiMove: Move): Outcome {
 
 // How many rounds before the reveal can trigger
 const REVEAL_MIN_ROUNDS = 8
-// Confidence threshold that triggers the reveal
-const REVEAL_CONFIDENCE = 0.25
 
 export default function MirrorMode() {
   const [gameState,    setGameState]    = useState<GameState>('observing')
@@ -49,6 +48,7 @@ export default function MirrorMode() {
   const [lastAiMove,   setLastAiMove]   = useState<Move | null>(null)
   const [outcome,      setOutcome]      = useState<Outcome | null>(null)
   const [loading, setLoading] = useState(true)
+  const { settings } = useSettings()
 
   // The AI is always learning from the user's moves in the background
   const aiPrediction = useMemo(() => predict(history), [history])
@@ -58,12 +58,12 @@ export default function MirrorMode() {
     if (
         gameState === 'observing' &&
         history.length >= REVEAL_MIN_ROUNDS &&
-        aiPrediction.confidence >= REVEAL_CONFIDENCE
+        aiPrediction.confidence >= settings.confidenceThreshold
     ) {
         const t = setTimeout(() => setGameState('revealing'), 0)
         return () => clearTimeout(t)
     }
-    }, [aiPrediction.confidence, history.length, gameState])
+    }, [aiPrediction.confidence, history.length, gameState, settings.confidenceThreshold])
 
   // Auto-advance after showing the result
   useEffect(() => {
@@ -243,13 +243,15 @@ export default function MirrorMode() {
                   <p className={`font-display text-xl font-bold mt-1 ${MOVE_COLOR[aiPrediction.predictedOpponent]}`}>
                     {MOVE_LABEL[aiPrediction.predictedOpponent]}
                   </p>
+                  {settings.showConfidence && (
                   <p className="mt-3 text-xs font-medium text-accent">
-                    So I&apos;m playing... {MOVE_LABEL[aiPrediction.suggestedMove]} · {confidencePct}% sure
+                      So I&apos;m playing {MOVE_LABEL[aiPrediction.suggestedMove]} · {confidencePct}% sure
                   </p>
-                  {aiPrediction.reason && (
-                    <p className="mt-1.5 text-xs text-zinc-500 leading-relaxed">
+                  )}
+                 {settings.showReason && aiPrediction.reason && (
+                  <p className="mt-1.5 text-xs text-zinc-500 leading-relaxed">
                       {aiPrediction.reason}
-                    </p>
+                  </p>
                   )}
                 </div>
 

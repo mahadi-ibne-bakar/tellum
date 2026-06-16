@@ -11,6 +11,7 @@ import {
   getOpponentProfiles,
   createOpponentProfile,
 } from '@/lib/supabase/database'
+import { useSettings } from '@/hooks/useSettings'
 
 type GamePhase = 'selecting' | 'playing'
 type RoundPhase = 'suggest' | 'input' | 'result'
@@ -50,9 +51,10 @@ export default function CoachMode() {
   const [history,         setHistory]        = useState<RoundRecord[]>([])
   const [lastOpponentMove, setLastOpponentMove] = useState<Move | null>(null)
   const [outcome,         setOutcome]        = useState<Outcome | null>(null)
+  const { settings } = useSettings()
 
   const prediction   = useMemo(() => predict(history), [history])
-  const isLearning   = prediction.confidence < 0.2
+  const isLearning = prediction.confidence < settings.confidenceThreshold
   const confidencePct = Math.round(prediction.confidence * 100)
 
   // Load profiles on mount
@@ -291,13 +293,15 @@ export default function CoachMode() {
                     </div>
                   ) : (
                     <>
-                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 text-xs font-medium text-accent">
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                        {confidencePct}% confident
-                      </div>
-                      {prediction.reason && (
+                      {settings.showConfidence && (
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 text-xs font-medium text-accent">
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                            {confidencePct}% confident
+                        </div>
+                      )}
+                      {settings.showReason && prediction.reason && (
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xs text-center leading-relaxed mt-1">
-                          {prediction.reason}
+                            {prediction.reason}
                         </p>
                       )}
                     </>

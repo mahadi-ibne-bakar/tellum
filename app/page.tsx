@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AuthButton } from '@/components/AuthButton'
+import Link from 'next/link'
 
 const modes = [
   {
@@ -73,6 +74,21 @@ export default function Home() {
           </motion.div>
         ))}
       </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.6 }}
+        className="mt-8"
+      >
+        <Link
+          href="/settings"
+          className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+        >
+          Settings
+        </Link>
+      </motion.div>
     </main>
+
+    
   )
 }
