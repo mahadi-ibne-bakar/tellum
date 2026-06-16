@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { predict } from '@/lib/ai/engine'
 import type { Move, RoundRecord } from '@/lib/types'
+import { loadHistory, saveRound } from '@/lib/supabase/database'
 
 type Phase = 'suggest' | 'input' | 'result'
 type Outcome = 'win' | 'loss' | 'tie'
@@ -35,6 +36,7 @@ export default function CoachMode() {
   const [history, setHistory] = useState<RoundRecord[]>([])
   const [lastOpponentMove, setLastOpponentMove] = useState<Move | null>(null)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const [loading, setLoading] = useState(true)
 
   // This single line IS the AI — recomputes every time history changes
   const prediction = useMemo(() => predict(history), [history])
@@ -45,10 +47,15 @@ export default function CoachMode() {
   function handleOpponentMove(move: Move) {
     const result = getOutcome(prediction.suggestedMove, move)
 
-    setHistory((prev) => [
-      ...prev,
-      { opponentMove: move, yourMove: prediction.suggestedMove, outcome: result },
-    ])
+    const record: RoundRecord = {
+      opponentMove: move,
+      yourMove: prediction.suggestedMove,
+      outcome: result,
+    }
+
+    setHistory((prev) => [...prev, record])
+    saveRound('coach', record)
+
     setLastOpponentMove(move)
     setOutcome(result)
     setScore((prev) => ({
@@ -70,6 +77,13 @@ export default function CoachMode() {
     return () => clearTimeout(t)
   }, [phase])
 
+  useEffect(() => {
+    loadHistory('coach').then((h) => {
+      setHistory(h)
+      setLoading(false)
+    })
+  }, [])
+
   const OUTCOME_TEXT: Record<Outcome, string> = {
     win:  '✅ You won that round',
     loss: '❌ They got that one',
@@ -79,6 +93,14 @@ export default function CoachMode() {
     win: 'text-green-400',
     loss: 'text-red-400',
     tie: 'text-zinc-400',
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
+        <p className="text-sm text-zinc-500">Loading history...</p>
+      </div>
+    )
   }
 
   return (

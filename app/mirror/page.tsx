@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { predict } from '@/lib/ai/engine'
 import type { Move, RoundRecord } from '@/lib/types'
+import { loadHistory, saveRound } from '@/lib/supabase/database'
 
 type GameState = 'observing' | 'revealing' | 'confronting'
 type RoundPhase = 'choose' | 'result'
@@ -47,6 +48,7 @@ export default function MirrorMode() {
   const [lastUserMove, setLastUserMove] = useState<Move | null>(null)
   const [lastAiMove,   setLastAiMove]   = useState<Move | null>(null)
   const [outcome,      setOutcome]      = useState<Outcome | null>(null)
+  const [loading, setLoading] = useState(true)
 
   // The AI is always learning from the user's moves in the background
   const aiPrediction = useMemo(() => predict(history), [history])
@@ -76,6 +78,13 @@ export default function MirrorMode() {
     return () => clearTimeout(t)
   }, [roundPhase])
 
+  useEffect(() => {
+    loadHistory('mirror').then((h) => {
+      setHistory(h)
+      setLoading(false)
+    })
+  }, [])
+
   function handleUserMove(userMove: Move) {
     // Phase 1: AI plays randomly. Phase 3: AI plays its prediction.
     const aiMove =
@@ -90,6 +99,7 @@ export default function MirrorMode() {
       ...prev,
       { opponentMove: userMove, yourMove: aiMove, outcome: aiOutcome },
     ])
+    saveRound('mirror', { opponentMove: userMove, yourMove: aiMove, outcome: aiOutcome })
 
     setLastUserMove(userMove)
     setLastAiMove(aiMove)
@@ -113,6 +123,14 @@ export default function MirrorMode() {
     win:  'text-green-400',
     loss: 'text-red-400',
     tie:  'text-zinc-400',
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
+        <p className="text-sm text-zinc-500">Loading history...</p>
+      </div>
+    )
   }
 
   return (
