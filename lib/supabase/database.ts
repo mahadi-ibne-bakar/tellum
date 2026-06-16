@@ -82,3 +82,14 @@ export async function createOpponentProfile(
 
   return data ?? null
 }
+
+export async function getOpponentProfile(id: string): Promise<OpponentProfile | null> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('opponent_profiles')
+    .select('id, name, created_at')
+    .eq('id', id)
+    .single()
+
+  return data ?? null
+}

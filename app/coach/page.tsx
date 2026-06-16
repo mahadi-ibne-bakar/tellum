@@ -166,17 +166,27 @@ export default function CoachMode() {
 
           {/* Existing profiles */}
           {profiles.map((profile, i) => (
-            <motion.button
+            <motion.div
               key={profile.id}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
-              onClick={() => handleSelectProfile(profile)}
-              className="w-full p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-accent text-left transition-all active:scale-95"
+              className="flex items-center gap-2"
             >
-              <p className="font-medium">{profile.name}</p>
-              <p className="text-xs text-zinc-500 mt-0.5">Continue →</p>
-            </motion.button>
+              <button
+                onClick={() => handleSelectProfile(profile)}
+                className="flex-1 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-accent text-left transition-all active:scale-95"
+              >
+                <p className="font-medium">{profile.name}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Continue →</p>
+              </button>
+              <Link
+                href={`/coach/profile/${profile.id}`}
+                className="px-4 py-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 hover:border-accent hover:text-accent transition-all"
+              >
+                Card
+              </Link>
+            </motion.div>
           ))}
 
           {/* New opponent */}

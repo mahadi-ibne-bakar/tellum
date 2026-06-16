@@ -24,3 +24,8 @@ export interface OpponentProfile {
   name: string
   created_at: string
 }
+
+export interface PatternBadge {
+  icon: string
+  label: string
+}

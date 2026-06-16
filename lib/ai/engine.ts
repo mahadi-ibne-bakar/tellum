@@ -39,7 +39,8 @@ function cap(s: string) {
 // ── Model 1: Frequency ───────────────────────────────────────────────────────
 // Tracks overall move distribution. Are they a Rock-heavy player?
 
-function frequencyModel(history: RoundRecord[]): ModelOutput {
+export function frequencyModel(history: RoundRecord[]): ModelOutput {
+
   if (history.length < 3) return uniform()
 
   const counts = { rock: 0, paper: 0, scissors: 0 }
@@ -66,7 +67,7 @@ function frequencyModel(history: RoundRecord[]): ModelOutput {
 // Tracks what they throw after each specific move.
 // "After Rock, they throw Paper 70% of the time."
 
-function markovModel(history: RoundRecord[]): ModelOutput {
+export function markovModel(history: RoundRecord[]): ModelOutput {
   if (history.length < 4) return uniform()
 
   const lastMove = history[history.length - 1].opponentMove
@@ -102,7 +103,7 @@ function markovModel(history: RoundRecord[]): ModelOutput {
 // Tracks what they throw after winning, losing, or tying.
 // "After losing, they almost always switch to Rock."
 
-function outcomesModel(history: RoundRecord[]): ModelOutput {
+export function outcomesModel(history: RoundRecord[]): ModelOutput {
   if (history.length < 4) return uniform()
 
   // Convert our outcome to their outcome
@@ -144,7 +145,7 @@ function outcomesModel(history: RoundRecord[]): ModelOutput {
 // Detects when they repeat the same move 2+ times in a row.
 // People usually switch after a streak.
 
-function streakModel(history: RoundRecord[]): ModelOutput {
+export function streakModel(history: RoundRecord[]): ModelOutput {
   if (history.length < 3) return uniform()
 
   const last = history[history.length - 1].opponentMove
@@ -173,7 +174,7 @@ function streakModel(history: RoundRecord[]): ModelOutput {
 // ── Model 5: Rotation ────────────────────────────────────────────────────────
 // Detects if they cycle through moves in order (R→P→S or R→S→P).
 
-function rotationModel(history: RoundRecord[]): ModelOutput {
+export function rotationModel(history: RoundRecord[]): ModelOutput {
   if (history.length < 5) return uniform()
 
   const cw: Move[] = ['rock', 'paper', 'scissors']
