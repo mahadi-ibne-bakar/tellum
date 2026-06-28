@@ -218,10 +218,10 @@ export function rotationModel(history: RoundRecord[]): ModelOutput {
 export function predict(history: RoundRecord[]): Prediction {
   // No data yet — return a random suggestion
   if (history.length === 0) {
-    const rand = MOVES[Math.floor(Math.random() * 3)]
+    const predictedOpponent = MOVES[Math.floor(Math.random() * 3)]
     return {
-      suggestedMove: rand,
-      predictedOpponent: rand,
+      suggestedMove: COUNTER[predictedOpponent],
+      predictedOpponent,
       confidence: 0,
       reason: '',
       distribution: { rock: 1 / 3, paper: 1 / 3, scissors: 1 / 3 },

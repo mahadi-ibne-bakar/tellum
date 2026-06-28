@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { predict } from '@/lib/ai/engine'
 import type { Move, RoundRecord } from '@/lib/types'
+import { MOVE_EMOJI, MOVE_LABEL, MOVE_COLOR } from '@/lib/constants'
 import { loadHistory, saveRound } from '@/lib/supabase/database'
 import { useSettings } from '@/hooks/useSettings'
 
@@ -12,12 +13,15 @@ type GameState = 'observing' | 'revealing' | 'confronting'
 type RoundPhase = 'choose' | 'result'
 type Outcome = 'win' | 'loss' | 'tie'
 
-const MOVE_EMOJI: Record<Move, string> = { rock: '✊', paper: '✋', scissors: '✌️' }
-const MOVE_LABEL: Record<Move, string> = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors' }
-const MOVE_COLOR: Record<Move, string> = {
-  rock: 'text-rock',
-  paper: 'text-paper',
-  scissors: 'text-scissors',
+const OUTCOME_TEXT: Record<Outcome, string> = {
+  win:  '✅ You won that round',
+  loss: '❌ Tellum called it',
+  tie:  '🤝 Tie',
+}
+const OUTCOME_COLOR: Record<Outcome, string> = {
+  win:  'text-green-400',
+  loss: 'text-red-400',
+  tie:  'text-zinc-400',
 }
 
 function randomMove(): Move {
@@ -113,17 +117,6 @@ export default function MirrorMode() {
   }
 
   const confidencePct = Math.round(aiPrediction.confidence * 100)
-
-  const OUTCOME_TEXT: Record<Outcome, string> = {
-    win:  '✅ You won that round',
-    loss: '❌ Tellum called it',
-    tie:  '🤝 Tie',
-  }
-  const OUTCOME_COLOR: Record<Outcome, string> = {
-    win:  'text-green-400',
-    loss: 'text-red-400',
-    tie:  'text-zinc-400',
-  }
 
   if (loading) {
     return (

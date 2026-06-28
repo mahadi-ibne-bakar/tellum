@@ -12,7 +12,7 @@ export async function saveRound(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  await supabase.from('rounds').insert({
+  const { error } = await supabase.from('rounds').insert({
     user_id:              user.id,
     mode,
     opponent_move:        round.opponentMove,
@@ -20,6 +20,7 @@ export async function saveRound(
     outcome:              round.outcome,
     opponent_profile_id:  opponentProfileId ?? null,
   })
+  if (error) console.error('Failed to save round:', error.message)
 }
 
 export async function loadHistory(

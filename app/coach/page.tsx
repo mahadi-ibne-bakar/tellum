@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { predict } from '@/lib/ai/engine'
 import type { Move, RoundRecord, OpponentProfile } from '@/lib/types'
+import { MOVE_EMOJI, MOVE_LABEL, MOVE_COLOR, getOutcome } from '@/lib/constants'
 import {
   loadHistory,
   saveRound,
@@ -17,22 +18,15 @@ type GamePhase = 'selecting' | 'playing'
 type RoundPhase = 'suggest' | 'input' | 'result'
 type Outcome = 'win' | 'loss' | 'tie'
 
-const MOVE_EMOJI: Record<Move, string> = { rock: '✊', paper: '✋', scissors: '✌️' }
-const MOVE_LABEL: Record<Move, string> = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors' }
-const MOVE_COLOR: Record<Move, string> = {
-  rock: 'text-rock',
-  paper: 'text-paper',
-  scissors: 'text-scissors',
+const OUTCOME_TEXT: Record<Outcome, string> = {
+  win:  '✅ You won that round',
+  loss: '❌ They got that one',
+  tie:  '🤝 Tie',
 }
-
-function getOutcome(yourMove: Move, theirMove: Move): Outcome {
-  if (yourMove === theirMove) return 'tie'
-  if (
-    (yourMove === 'rock'     && theirMove === 'scissors') ||
-    (yourMove === 'paper'    && theirMove === 'rock')     ||
-    (yourMove === 'scissors' && theirMove === 'paper')
-  ) return 'win'
-  return 'loss'
+const OUTCOME_COLOR: Record<Outcome, string> = {
+  win:  'text-green-400',
+  loss: 'text-red-400',
+  tie:  'text-zinc-400',
 }
 
 export default function CoachMode() {
@@ -135,17 +129,6 @@ export default function CoachMode() {
       ties: result === 'tie'  ? prev.ties + 1 : prev.ties,
     }))
     setRoundPhase('result')
-  }
-
-  const OUTCOME_TEXT: Record<Outcome, string> = {
-    win:  '✅ You won that round',
-    loss: '❌ They got that one',
-    tie:  '🤝 Tie',
-  }
-  const OUTCOME_COLOR: Record<Outcome, string> = {
-    win:  'text-green-400',
-    loss: 'text-red-400',
-    tie:  'text-zinc-400',
   }
 
   // ── Profile selector screen ───────────────────────────────────────────────
