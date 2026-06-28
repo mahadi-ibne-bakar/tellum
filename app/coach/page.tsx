@@ -88,13 +88,29 @@ export default function CoachMode() {
 
   async function handleCreateProfile() {
     if (!newName.trim()) return
+
     const profile = await createOpponentProfile(newName.trim())
-    if (profile) {
-      setProfiles((prev) => [profile, ...prev])
-      setSelectedProfile(profile)
-      setHistory([])
-      setGamePhase('playing')
+
+    // If signed in: profile saved to Supabase, use it
+    // If not signed in: createOpponentProfile returns null — create a local-only profile
+    const resolvedProfile: OpponentProfile = profile ?? {
+      id: `local-${Date.now()}`,
+      name: newName.trim(),
+      created_at: new Date().toISOString(),
     }
+
+    // Only add to the visible list if it was actually saved to the database
+    if (profile) setProfiles((prev) => [profile, ...prev])
+
+    setSelectedProfile(resolvedProfile)
+    setHistory([])
+    setGamePhase('playing')
+  }
+
+  function handleQuickPlay() {
+    setSelectedProfile(null)
+    setHistory([])
+    setGamePhase('playing')
   }
 
   // ── Game handler ──────────────────────────────────────────────────────────
@@ -195,6 +211,17 @@ export default function CoachMode() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: profiles.length * 0.05 }}
           >
+            {/* Quick play — no profile needed */}
+            <motion.button
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
+              onClick={handleQuickPlay}
+              className="w-full p-4 rounded-2xl bg-accent/5 border border-accent/20 hover:border-accent text-left transition-all active:scale-95"
+            >
+              <p className="font-medium text-accent">Quick game</p>
+              <p className="text-xs text-zinc-500 mt-0.5">No opponent tracking — just play</p>
+            </motion.button>            
             {!showNewInput ? (
               <button
                 onClick={() => setShowNewInput(true)}
@@ -237,7 +264,7 @@ export default function CoachMode() {
           onClick={() => setGamePhase('selecting')}
           className="font-display font-bold text-lg hover:text-accent transition-colors"
         >
-          ← {selectedProfile?.name ?? 'Tellum'}
+          ← {selectedProfile?.name ?? 'Coach Mode'}
         </button>
         <div className="flex items-center gap-4 text-sm font-medium">
           <span className="text-zinc-400">Round {round}</span>
@@ -274,7 +301,7 @@ export default function CoachMode() {
                     <div className={`text-7xl ${MOVE_COLOR[lastOpponentMove]}`}>
                       {MOVE_EMOJI[lastOpponentMove]}
                     </div>
-                    <p className="mt-1 text-xs text-zinc-500">{selectedProfile?.name}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{selectedProfile?.name ?? 'Them'}</p>
                   </div>
                 </div>
                 <p className={`text-xl font-semibold ${OUTCOME_COLOR[outcome]}`}>
@@ -299,7 +326,7 @@ export default function CoachMode() {
                   {isLearning ? (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-500">
                       <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />
-                      Learning {selectedProfile?.name}...
+                      Learning {selectedProfile?.name ?? 'opponent'}...
                     </div>
                   ) : (
                     <>
@@ -347,7 +374,7 @@ export default function CoachMode() {
                 transition={{ duration: 0.2 }}
               >
                 <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                  What did {selectedProfile?.name} throw?
+                  What did {selectedProfile?.name ?? 'they'} throw?
                 </p>
                 <div className="grid grid-cols-3 gap-3">
                   {(['rock', 'paper', 'scissors'] as Move[]).map((move) => (
